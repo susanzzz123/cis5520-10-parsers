@@ -98,12 +98,10 @@ define a record accessor to let us conveniently extract the parser:
 
 newtype Parser a = P {doParse :: String -> Maybe (a, String)}
 
-{-
-~~~~~~{.haskell}
-ghci> :t doParse
-doParse :: Parser a -> String -> Maybe (a,String)
-~~~~~~
+-- >>> :t doParse
+-- doParse :: Parser a -> String -> Maybe (a, String)
 
+{-
 This type definition will make sure that we keep parsers distinct from other
 values of this type and, more importantly, will allow us to make parsers an
 instance of one or more typeclasses, if this turns out to be convenient
@@ -156,13 +154,15 @@ get = P $ \s -> case s of
 {-
 Try it out!
 
-~~~~~{.haskell}
-ghci> doParse get "hey!"
-Just ('h',"ey!")
-ghci> doParse get ""
-Nothing
-~~~~~
+-}
 
+-- >>> doParse get "hey!"
+-- Just ('h',"ey!")
+
+-- >>> doParse get ""
+-- Nothing
+
+{-
 See if you can modify the above to produce a parser that looks at the first
 char of a (nonempty) string and interprets it as an int in the range
 0-9. (Hint: remember the `readMaybe` function.)
@@ -171,16 +171,16 @@ char of a (nonempty) string and interprets it as an int in the range
 oneDigit :: Parser Int
 oneDigit = undefined
 
-{-
-~~~~~{.haskell}
-ghci> doParse oneDigit "1"
-Just (1,"")
-ghci> doParse oneDigit "12"
-Just (1,"2")
-ghci> doParse oneDigit "hey!"
-Nothing
-~~~~~
+-- >>> doParse oneDigit "1"
+-- Just (1,"")
 
+-- >>> doParse oneDigit "12"
+-- Just (1,"2")
+
+-- >>> doParse oneDigit "hey!"
+-- Nothing
+
+{-
 And here's a parser that looks at the first char of a string and interprets it
 as the unary negation operator, if it is `'-'`, and an identity function if it
 is `'+'`.
@@ -202,14 +202,11 @@ if the first character satisfies the predicate.
 satisfy :: (Char -> Bool) -> Parser Char
 satisfy f = undefined
 
-{-
-~~~~~{.haskell}
-ghci> doParse (satisfy isAlpha) "a"
-Just ('a',"")
-ghci> doParse (satisfy isUpper) "a"
-Nothing
-~~~~~
--}
+-- >>>  doParse (satisfy isAlpha) "a"
+-- Just ('a',"")
+
+-- >>> doParse (satisfy isUpper) "a"
+-- Nothing
 
 --    SPOILER SPACE
 --     |
@@ -301,45 +298,42 @@ alphaChar, digitChar :: Parser Char
 alphaChar = satisfy isAlpha
 digitChar = satisfy isDigit
 
-{-
-~~~~~~~~~~~~~~~~~~{.haskell}
-ghci> doParse alphaChar "123"
-Nothing
-ghci> doParse digitChar "123"
-Just ('1',"23")
-~~~~~~~~~~~~~~~~~~~
+-- >>> doParse alphaChar "123"
+-- Nothing
 
-And now we can use `fmap` to rewrite `oneDigit`:
--}
-
-oneDigit' :: Parser Int
-oneDigit' = cvt <$> digitChar -- fmap!
-  where
-    cvt :: Char -> Int
-    cvt c = ord c - ord '0'
+-- >>> doParse digitChar "123"
+-- Just ('1',"23")
 
 {-
-~~~~~{.haskell}
-ghci> doParse oneDigit' "92"
-Just (9,"2")
-ghci> doParse oneDigit' "cat"
-Nothing
-~~~~~
-
-Finally, finish this parser that should parse just one specific `Char`:
+Similarly, finish this parser that should parse just one specific `Char`:
 -}
 
 char :: Char -> Parser Char
 char c = undefined
 
-{-
-~~~~~~~~~~~{.haskell}
-ghci> doParse (char 'a') "ab"
-Just ('a',"b")
-ghci> doParse (char 'a') "ba"
-Nothing
-~~~~~~~~~~~~~~~~~~~~~
+-- >>> doParse (char 'a') "ab"
+-- Just ('a',"b")
 
+-- >>> doParse (char 'a') "ba"
+-- Nothing
+
+{-
+And now let's use `fmap` to rewrite `oneDigit`:
+-}
+
+oneDigit' :: Parser Int
+oneDigit' = cvt <$> digitChar -- <$> is fmap!
+  where
+    cvt :: Char -> Int
+    cvt c = ord c - ord '0'
+
+-- >>> doParse oneDigit' "92"
+-- Just (9,"2")
+
+-- >>> doParse oneDigit' "cat"
+-- Nothing
+
+{-
 Parser Composition
 ==================
 
@@ -377,14 +371,17 @@ and use that to rewrite `twoChar` more elegantly like this:
 twoChar1 :: Parser (Char, Char)
 twoChar1 = pairP0 get get
 
-{-
-~~~~~{.haskell}
-ghci> doParse twoChar1 "hey!"
-Just (('h','e'),"y!")
-ghci> doParse twoChar1 ""
-Nothing
-~~~~~
+-- >>> doParse twoChar1 "hey!"
 
+-- >>> doParse twoChar1 ""
+
+-- >>> doParse (pairP0 oneDigit get) "1a"
+-- Just ((1,'a'),"")
+
+-- >>> doParse (pairP0 oneDigit get) "a1"
+-- Nothing
+
+{-
 Parser is an Applicative Functor
 ================================
 
@@ -409,12 +406,13 @@ signedDigit0 = P $ \s -> do
   (x, cs') <- doParse oneDigit cs
   return (f x, cs')
 
-{-
-~~~~~{.haskell}
-ghci> doParse signedDigit0 "-1"
-ghci> doParse signedDigit0 "+3"
-~~~~~
+-- >>> doParse signedDigit0 "-1"
+-- Just (-1,"")
 
+-- >>> doParse signedDigit0 "+3"
+-- Just (3,"")
+
+{-
 Can we generalize this pattern? What is the type when `oneOp` and `oneDigit`
 are arguments to the combinator?
 -}
@@ -462,14 +460,15 @@ twoChar = pure (,) <*> get <*> get
 signedDigit :: Parser Int
 signedDigit = oneOp <*> oneDigit
 
-{-
-~~~~~{.haskell}
-ghci> doParse twoChar "hey!"
-ghci> doParse twoChar ""
-ghci> doParse signedDigit "-1"
-ghci> doParse signedDigit "+3"
-~~~~~~
+-- >>> doParse twoChar "hey!"
 
+-- >>> doParse twoChar ""
+
+-- >>> doParse signedDigit "-1"
+
+-- >>> doParse signedDigit "+3"
+
+{-
 Now we're picking up speed.  First, we can use our combinators to rewrite
 our more general pairing parser (`pairP`) like this:
 -}
@@ -526,12 +525,10 @@ characters.
 parenP :: Parser a -> Parser a
 parenP p = char '(' *> p <* char ')'
 
-{-
-~~~~~{.haskell}
-ghci> doParse (parenP get) "(1)"
-Just ('1',"")
-~~~~~
+-- >>> doParse (parenP get) "(1)"
+-- Just ('1',"")
 
+{-
 Monadic Parsing
 ---------------
 
@@ -544,6 +541,14 @@ see if you can figure out an appropriate definition of `(>>=)`.
 
 bindP :: Parser a -> (a -> Parser b) -> Parser b
 bindP = undefined
+
+twoChar' :: Parser (Char, Char)
+twoChar' = bindP get $ \c1 ->
+  bindP get $ \c2 ->
+    pure (c1, c2)
+
+-- >>> doParse twoChar' "hey!"
+-- Just (('h','e'),"y!")
 
 {-
 Recursive Parsing
@@ -564,11 +569,13 @@ string (x : xs) = (:) <$> char x <*> string xs
 {-
 Much better!
 
-~~~~~{.haskell}
-ghci> doParse (string "mic") "mickeyMouse"
-ghci> doParse (string "mic") "donald duck"
-~~~~~
+-}
 
+-- >>> doParse (string "mic") "mickeyMouse"
+
+-- >>> doParse (string "mic") "donald duck"
+
+{-
 For fun, try to write `string` using `foldr` for the list recursion.
 -}
 
@@ -583,14 +590,13 @@ Furthermore, we can use natural number recursion to write a parser that grabs
 grabn :: Int -> Parser String
 grabn n = if n <= 0 then pure "" else (:) <$> get <*> grabn (n -1)
 
-{-
-~~~~~{.haskell}
-ghci> doParse (grabn 3) "mickeyMouse"
-Just ("mic","keyMouse")
-ghci> doParse (grabn 3) "mi"
-Nothing
-~~~~~
+-- >>> doParse (grabn 3) "mickeyMouse"
+-- Just ("mic","keyMouse")
 
+-- >>> doParse (grabn 3) "mi"
+-- Nothing
+
+{-
 Choice
 ======
 
@@ -629,14 +635,11 @@ returns either an alphabetic or a numeric character
 alphaNumChar :: Parser Char
 alphaNumChar = alphaChar `chooseFirstP` digitChar
 
-{-
-~~~~~{.haskell}
-ghci> doParse alphaNumChar "cat"
-Just ('c',"at")
-ghci> doParse alphaNumChar "2cat"
-Just ('2',"cat")
-~~~~~
+-- >>> doParse alphaNumChar "cat"
 
+-- >>> doParse alphaNumChar "2cat"
+
+{-
 Parsing multiple inputs
 -----------------------
 
@@ -653,17 +656,11 @@ either case, the result is a list.
 manyP :: Parser a -> Parser [a]
 manyP p = ((:) <$> p <*> manyP p) `chooseFirstP` pure []
 
+-- >>> doParse (manyP oneDigit) "12345a"
+
+-- >>> doParse (manyP alphaChar) "12345a"
+
 {-
-~~~~~{.haskell}
-    ghci> doParse (manyP oneDigit) "12345a"
-    Just ([1,2,3,4,5],"a")
-~~~~~
-
-~~~~~{.haskell}
-    ghci> doParse (manyP alphaChar) "12345a"
-    Just ([],"12345a")
-~~~~~
-
 Look out! What happens if we swap the order of the arguments to `chooseFirstP`?
 -}
 
@@ -674,11 +671,11 @@ manyP' p = pure [] `chooseFirstP` ((:) <$> p <*> manyP p)
 We don't want to do this --- the `pure []` parser always succeeds, so the result
 will always be `[]`.
 
-~~~~~{.haskell}
-    ghci> doParse (manyP' oneDigit) "12345a"
-    Just ([],"12345a")
-~~~~~
+-}
 
+-- >>> doParse (manyP' oneDigit) "12345a"
+
+{-
 Alternative
 -----------
 
@@ -707,7 +704,7 @@ and
     a  <|> empty  === a
 
 For parsers, this means that we need to have a *failure* parser that never
-parses anything (i.e. one that always returns `[]`):
+parses anything (i.e. one that always returns `Nothing`):
 -}
 
 failP :: Parser a
@@ -737,18 +734,17 @@ return their results in a list.
 
 For parsing, the `many` combinator returns a single, maximal sequence produced by iterating
 the given parser, zero or more times
+-}
 
-~~~~~{.haskell}
-ghci> doParse (many digitChar) "12345a"
-Just ("12345","a")
-ghci> doParse (many digitChar) ""
-Just ("","")
-ghci> doParse (some digitChar) "12345a"
-Just ("12345","a")
-ghci> doParse (some digitChar) ""
-Nothing
-~~~~~
+-- >>> doParse (many digitChar) "12345a"
 
+-- >>> doParse (many digitChar) ""
+
+-- >>> doParse (some digitChar) "12345a"
+
+-- >>> doParse (some digitChar) ""
+
+{-
 This sequence is maximal because the definition of `many` tries `some v`
 before returning `Nothing`. If the definition had been the other way around, then
 the result would always be the empty list (because `pure []` always succeeds).
@@ -760,12 +756,11 @@ Let's use `some` to write a parser that will return an entire natural number
 oneNat :: Parser Int
 oneNat = fmap read (some digitChar) -- know that read will succeed because input is all digits
 
-{-
-~~~~~{.haskell}
-ghci> doParse oneNat "12345a"
-ghci> doParse oneNat ""
-~~~~~
+-- >>> doParse oneNat "12345a"
 
+-- >>> doParse oneNat ""
+
+{-
 Challenge (will not be on the quiz): use the `Alternative` operators to
 implement a parser that parses zero or more occurrences of `p`, separated by
 `sep`.
@@ -774,22 +769,25 @@ implement a parser that parses zero or more occurrences of `p`, separated by
 sepBy :: Parser a -> Parser b -> Parser [a]
 sepBy p sep = undefined
 
-{-
-~~~~~{.haskell}
-ghci > doParse (sepBy oneNat (char ',')) "1,12,0,3"
-Just ([1,12,0,3],"")
-ghci> doParse (sepBy oneNat (char ',')) "1"
-Just ([1],"")
-ghci > doParse (sepBy oneNat (char ',')) "1,12,0,"
-Just ([1,12,0],",")
-ghci > doParse (sepBy oneNat (char '8')) "888"
-Just ([888],"")
-ghci > doParse (sepBy (char '8') (char '8')) "888"
-Just ("88","")
-ghci > doParse (sepBy oneNat (char ',')) ""
-Just ([],"")
-~~~~~
+-- >>> doParse (sepBy oneNat (char ',')) "1,12,0,3"
+-- Just ([1,12,0,3],"")
 
+-- >>> doParse (sepBy oneNat (char ',')) "1"
+-- Just ([1],"")
+
+-- >>> doParse (sepBy oneNat (char ',')) "1,12,0,"
+-- Just ([1,12,0],",")
+
+-- >>> doParse (sepBy oneNat (char '8')) "888"
+-- Just ([888],"")
+
+-- >>> doParse (sepBy (char '8') (char '8')) "888"
+-- Just ("88","")
+
+-- >>> doParse (sepBy oneNat (char ',')) ""
+-- Just ([],"")
+
+{-
 Parsing Arithmetic Expressions
 ==============================
 
@@ -823,20 +821,20 @@ calc1 = infixAp oneNat intOp calc1 <|> oneNat
 {-
 This works pretty well...
 
-~~~~~{.haskell}
-ghci> doParse calc1 "1+2+33"
-Just (36,"")
-ghci> doParse calc1 "11+22-33"
-Just (0,"")
-~~~~~
+-}
 
+-- >>> doParse calc1 "1+2+33"
+
+-- >>> doParse calc1 "11+22-33"
+
+{-
 But things get a bit strange with minus:
 
-~~~~~{.haskell}
-ghci> doParse calc1 "11+22-33+45"
-Just (-45,"")
-~~~~~
+-}
 
+-- >>> doParse calc1 "11+22-33+45"
+
+{-
 Huh?  Well, if you look back at the code, you'll realize the
 above was parsed as
 
@@ -859,11 +857,11 @@ If you try this parser out, you'll see that it hangs on all inputs.
 
 Furthermore, things also get a bit strange with multiplication:
 
-~~~~~{.haskell}
-ghci> doParse calc1 "10*2+100"
-Just (1020,"")
-~~~~~
+-}
 
+-- >>> doParse calc1 "10*2+100"
+
+{-
 This string is parsed as:
 
 ~~~~~{.haskell}
@@ -912,26 +910,24 @@ factorE = oneNat <|> parenP calc2
 {-
 Now our parser is still right associative, but multiplication binds tighter
 than addition.
+-}
 
-~~~~~{.haskell}
-ghci> doParse calc2 "1+10*2+100"
-Just (121,"")
-ghci> doParse calc2 "1+10*(2+100)"
-Just (1021,"")
-~~~~~
+-- >>> doParse calc2 "1+10*2+100"
 
+-- >>> doParse calc2 "1+10*(2+100)"
+
+{-
 Do you understand why the first parse returned `121`?
 
 Parsing Pattern: Associativity via Chaining
 -------------------------------------------
 
 But we're still not done: we need to fix the associativity problem.
+-}
 
-~~~~~{.haskell}
-ghci> doParse calc2 "10-1-1"
-Just (10,"")
-~~~~~
+-- >>> doParse calc2 "10-1-1"
 
+{-
 Ugh! I hope you understand why: it's because the above was parsed as
 `10 - (1 - 1)` (right associative) and not `(10 - 1) - 1` (left
 associative). You might be tempted to fix that simply by flipping the order
@@ -1012,11 +1008,11 @@ factorE1 = oneNat <|> parenP addE1
 {-
 The above is indeed left associative:
 
-~~~~~{.haskell}
-ghci> doParse addE1 "10-1-1"
-Just (8,"")
-~~~~~
+-}
 
+-- >>> doParse addE1 "10-1-1"
+
+{-
 Also, it is very easy to spot and bottle the chaining computation
 pattern: the only differences are the *base* parser (`mulE1` vs
 `factorE1`) and the binary operation (`addOp` vs `mulOp`).  We simply
@@ -1038,16 +1034,13 @@ addE2 = mulE2 `chainl1` addOp
 mulE2 = factorE2 `chainl1` mulOp
 factorE2 = parenP addE2 <|> oneNat
 
-{-
-~~~~~{.haskell}
-ghci> doParse addE2 "10-1-1"
-Just (8,"")
-ghci> doParse addE2 "10*2+1"
-Just (21,"")
-ghci> doParse addE2 "10+2*1"
-Just (12,"")
-~~~~~
+-- >>> doParse addE2 "10-1-1"
 
+-- >>> doParse addE2 "10*2+1"
+
+-- >>> doParse addE2 "10+2*1"
+
+{-
 Of course, we can generalize `chainl1` even further so that it is not
 specialized to parsing `Int` expressions. Try to update the type above so that
 it is more polymorphic.
