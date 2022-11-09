@@ -1,5 +1,3 @@
--- CIS 552, University of Pennsylvania
-
 -- | A small, applicative parsing library
 module ParserCombinators
   ( Parser,
@@ -29,11 +27,12 @@ where
 
 import Control.Applicative (Alternative (..))
 import Control.Monad (guard)
-import Data.Char
-import System.IO
+import Data.Char (isAlpha, isDigit, isLower, isSpace, isUpper)
+import System.IO (IOMode (ReadMode), hGetContents, openFile)
 import Prelude hiding (filter)
 
 -- definition of the parser type
+-- The `P` data constructor is not exported by this library
 newtype Parser a = P {doParse :: String -> Maybe (a, String)}
 
 instance Functor Parser where
@@ -52,6 +51,9 @@ instance Applicative Parser where
 instance Alternative Parser where
   empty = P $ const Nothing
   p1 <|> p2 = P $ \s -> doParse p1 s `firstJust` doParse p2 s
+
+-- There is no Monad instance for Parser so that you will be
+-- forced to practice with `(<*>)`.
 
 -- | Return the next character from the input
 get :: Parser Char
@@ -79,6 +81,11 @@ firstJust (Just x) _ = Just x
 firstJust Nothing y = y
 
 ---------------------------------------------------------------
+---------------------------------------------------------------
+-- After this point, the rest of the file treats the Parser
+-- type as abstract. i.e., it does not use the `P` data
+-- constructor, but instead defines all of the functions below
+-- in terms of the definitions above.
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 
