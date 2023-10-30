@@ -1,7 +1,6 @@
 # AUTO GENERATED HLINT FILE
 
 - functions:
-  - {name: head, within: []}
   - {name: tail, within: []}
   - {name: (!!), within: []}
   - {name: read, within: []}

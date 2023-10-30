@@ -1,7 +1,7 @@
 {-
 ---
 fulltitle: Parsing with Applicative Functors
-date: November 7, 2022
+date: November 6, 2023
 ---
 -}
 
@@ -9,7 +9,7 @@ module Parsers where
 
 import Control.Applicative
 import Control.Monad (guard)
-import Data.Char
+import Data.Char (isAlpha, isDigit, ord)
 import Text.Read (readMaybe)
 import Prelude hiding (filter)
 
@@ -157,10 +157,8 @@ Try it out!
 -}
 
 -- >>> doParse get "hey!"
--- Just ('h',"ey!")
 
 -- >>> doParse get ""
--- Nothing
 
 {-
 See if you can modify the above to produce a parser that looks at the first
@@ -229,7 +227,8 @@ satisfy f = undefined
 --     |
 
 {-
-Here's how I implemented `satisfy`, taking advantage of the Maybe monad.
+Here's how I implemented `satisfy`, taking advantage of the Maybe monad. (The
+`do` notation below is syntactic sugar for the `Maybe` monad's bind operation.)
 -}
 
 satisfy' :: (Char -> Bool) -> Parser Char
@@ -239,8 +238,6 @@ satisfy' f = P $ \s -> do
   return (c, cs)
 
 {-
->
-
 With this implementation, we can see that we can generalize again, so that it
 works for any parser, not just `get`...
 -}
@@ -340,7 +337,8 @@ Parser Composition
 What if we want to parse more than one character from the input?
 
 Using `get` we can write a composite parser that returns a pair of
-the first two `Char` values from the front of the input string:
+the first two `Char` values from the front of the input string.
+Again, we'll use `do` notation with the `Maybe` monad.
 
 -}
 
@@ -350,12 +348,10 @@ twoChar0 = P $ \s -> do
   (c2, cs') <- doParse get cs
   return ((c1, c2), cs')
 
-{-
-~~~~~~~~~~~{.haskell}
-ghci> doParse twoChar0 "ab"
-Just (('a','b'),"")
-~~~~~~~~~~~~~~~~~~~~~
+-- >>> doParse twoChar0 "ab"
+-- Just (('a','b'),"")
 
+{-
 More generally, we can write a *parser combinator* that takes two
 parsers and returns a new parser that uses first one and then the
 other and returns the pair of resulting values...
@@ -376,17 +372,15 @@ twoChar1 = pairP0 get get
 -- >>> doParse twoChar1 ""
 
 -- >>> doParse (pairP0 oneDigit get) "1a"
--- Just ((1,'a'),"")
 
 -- >>> doParse (pairP0 oneDigit get) "a1"
--- Nothing
 
 {-
 Parser is an Applicative Functor
 ================================
 
 Suppose we want to parse *two* characters, where the first should be a sign
-and the second a digit?
+(i.e. '+' or '-') and the second a digit?
 
 We've already defined single character parsers that should help. We just need
 to put them together.
@@ -447,7 +441,9 @@ So we can put these two definitions together in our class instance.
 -}
 
 instance Applicative Parser where
+  pure :: a -> Parser a
   pure = pureP
+  (<*>) :: Parser (a -> b) -> Parser a -> Parser b
   (<*>) = apP
 
 {-
@@ -526,13 +522,12 @@ parenP :: Parser a -> Parser a
 parenP p = char '(' *> p <* char ')'
 
 -- >>> doParse (parenP get) "(1)"
--- Just ('1',"")
 
 {-
 Monadic Parsing
 ---------------
 
-Although we aren't going to emphasize it in this lecture, the `Parser` type is
+Although we aren't going to emphasize it in this module, the `Parser` type is
 also a `Monad`. Just like `State` and list, we can make `Parser` an instance
 of the `Monad` type class. To make sure that you get practice with the
 applicative operators, such as `<*>`, we won't do that here. However, for practice,
@@ -966,35 +961,31 @@ type IntOp = Int -> Int -> Int
 addE1 :: Parser Int
 addE1 = process <$> first <*> rest
   where
+    {-
+
+    -}
+
     -- start with a multiplication expression
     first :: Parser Int
     first = mulE1
+    {-
+
+    -}
 
     -- parse any number of `addOp`s followed
     -- by a multiplication expression
     -- return the result in a list of tuples
     rest :: Parser [(IntOp, Int)]
     rest = many ((,) <$> addOp <*> mulE1)
-    {-
-    >
-    -}
 
     -- process the list of tuples with a left fold
     process :: Int -> [(IntOp, Int)] -> Int
     process = foldl comb
-    {-
-    >
-    -}
 
     -- combine each operator and argument with
     -- the current value of the parser
     comb :: Int -> (IntOp, Int) -> Int
     comb x (op, y) = x `op` y
-
-{-
->
->
--}
 
 mulE1 :: Parser Int
 mulE1 = foldl comb <$> factorE1 <*> rest
@@ -1019,7 +1010,7 @@ pattern: the only differences are the *base* parser (`mulE1` vs
 make those parameters to our *chain-left* combinator:
 -}
 
-chainl1 :: Parser Int -> Parser IntOp -> Parser Int
+-- chainl1 :: Parser Int -> Parser IntOp -> Parser Int
 p `chainl1` pop = foldl comb <$> p <*> rest
   where
     comb x (op, y) = x `op` y

@@ -31,8 +31,13 @@ import Data.Char (isAlpha, isDigit, isLower, isSpace, isUpper)
 import System.IO (IOMode (ReadMode), hGetContents, openFile)
 import Prelude hiding (filter)
 
--- definition of the parser type
+---------------------------------------------------------------
+---------------------------------------------------------------
+-- definition of the parser *abstract* type
 -- The `P` data constructor is not exported by this library
+-- so clients cannot know how the `Parser` type is implemented
+-- Instead, clients *must* use the functions defined in this
+-- file to construct and use parsers.
 newtype Parser a = P {doParse :: String -> Maybe (a, String)}
 
 instance Functor Parser where
@@ -42,15 +47,23 @@ instance Functor Parser where
     return (f c, cs)
 
 instance Applicative Parser where
+  pure :: a -> Parser a
   pure x = P $ \s -> Just (x, s)
+  (<*>) :: Parser (a -> b) -> Parser a -> Parser b
   p1 <*> p2 = P $ \s -> do
     (f, s') <- doParse p1 s
     (x, s'') <- doParse p2 s'
     return (f x, s'')
 
 instance Alternative Parser where
+  empty :: Parser a
   empty = P $ const Nothing
+  (<|>) :: Parser a -> Parser a -> Parser a
   p1 <|> p2 = P $ \s -> doParse p1 s `firstJust` doParse p2 s
+    where
+      firstJust :: Maybe a -> Maybe a -> Maybe a
+      firstJust (Just x) _ = Just x
+      firstJust Nothing y = y
 
 -- There is no Monad instance for Parser so that you will be
 -- forced to practice with `(<*>)`.
@@ -73,12 +86,6 @@ filter f p = P $ \s -> do
   (c, cs) <- doParse p s
   guard (f c)
   return (c, cs)
-
--- | Combine two Maybe values together, producing the first
--- successful result
-firstJust :: Maybe a -> Maybe a -> Maybe a
-firstJust (Just x) _ = Just x
-firstJust Nothing y = y
 
 ---------------------------------------------------------------
 ---------------------------------------------------------------
