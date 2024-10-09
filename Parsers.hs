@@ -1,7 +1,7 @@
 {-
 ---
 fulltitle: Parsing with Applicative Functors
-date: November 6, 2023
+date: November 4, 2024
 ---
 -}
 
@@ -124,7 +124,7 @@ definitions of the `return` and `(>>=)` functions.
 However, most of the time, we don't need the full monadic structure for parsing.
 Just deriving the applicative operators for this type will allow us to parse
 any context-free grammar. So in the material below, keep your eye out for
-*applicative* structure for this type.
+\*applicative* structure for this type.
 
 Now all we have to do is build some parsers!
 
@@ -583,7 +583,7 @@ Furthermore, we can use natural number recursion to write a parser that grabs
 -}
 
 grabn :: Int -> Parser String
-grabn n = if n <= 0 then pure "" else (:) <$> get <*> grabn (n -1)
+grabn n = if n <= 0 then pure "" else (:) <$> get <*> grabn (n - 1)
 
 -- >>> doParse (grabn 3) "mickeyMouse"
 -- Just ("mic","keyMouse")
@@ -807,7 +807,7 @@ parse simple expressions by parsing a digit followed by an operator and
 another calculation, or by parsing a single digit alone.
 -}
 
-infixAp :: Applicative f => f a -> f (a -> b -> c) -> f b -> f c
+infixAp :: (Applicative f) => f a -> f (a -> b -> c) -> f b -> f c
 infixAp = liftA3 (\i1 o i2 -> i1 `o` i2)
 
 calc1 :: Parser Int

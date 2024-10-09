@@ -1,7 +1,7 @@
 {-
 ---
 fulltitle: "In class exercise: XML parsing"
-date:
+date: November 6, 2024
 ---
 
 In today's exercise you will use the definitions from the `Parsers` lecture to
