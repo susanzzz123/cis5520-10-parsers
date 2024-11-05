@@ -134,7 +134,7 @@ Parsing a Single Character
 --------------------------
 
 Here's a *very* simple character parser that returns the first `Char`
-from a (nonempty) string.  Recall the parser type:
+from a (nonempty) string. Recall the parser type:
 
 ~~~~~{.haskell}
 newtype Parser a = P { doParse :: String -> Maybe (a, String) }
@@ -157,8 +157,10 @@ Try it out!
 -}
 
 -- >>> doParse get "hey!"
+-- Just ('h',"ey!")
 
 -- >>> doParse get ""
+-- Nothing
 
 {-
 See if you can modify the above to produce a parser that looks at the first
@@ -167,7 +169,12 @@ char of a (nonempty) string and interprets it as an int in the range
 -}
 
 oneDigit :: Parser Int
-oneDigit = undefined
+oneDigit = P $ \s ->
+  case s of
+    (c : cs) -> do
+      i <- readMaybe [c]
+      return (i, cs)
+    _ -> Nothing
 
 -- >>> doParse oneDigit "1"
 -- Just (1,"")
@@ -198,7 +205,10 @@ if the first character satisfies the predicate.
 -}
 
 satisfy :: (Char -> Bool) -> Parser Char
-satisfy f = undefined
+satisfy f = P $ \s ->
+  case s of
+    (c : cs) -> if f c then Just (c, cs) else Nothing
+    _ -> Nothing
 
 -- >>>  doParse (satisfy isAlpha) "a"
 -- Just ('a',"")
@@ -280,7 +290,9 @@ Of course! Like lists, the type constructor `Parser` is a functor.
 
 instance Functor Parser where
   fmap :: (a -> b) -> Parser a -> Parser b
-  fmap = undefined
+  fmap f p = P $ \s -> do
+    (c, cs) <- doParse p s
+    return (f c, cs)
 
 {-
 With `get`, `satisfy`, `filter`, and `fmap`, we now have a small library
@@ -306,7 +318,7 @@ Similarly, finish this parser that should parse just one specific `Char`:
 -}
 
 char :: Char -> Parser Char
-char c = undefined
+char c = satisfy (==c)
 
 -- >>> doParse (char 'a') "ab"
 -- Just ('a',"b")
@@ -358,7 +370,10 @@ other and returns the pair of resulting values...
 -}
 
 pairP0 :: Parser a -> Parser b -> Parser (a, b)
-pairP0 = undefined
+pairP0 a b = P $ \s -> do
+  (c, cs) <- doParse a s
+  (c', cs') <- doParse b cs
+  return ((c, c'), cs')
 
 {-
 and use that to rewrite `twoChar` more elegantly like this:
@@ -368,12 +383,16 @@ twoChar1 :: Parser (Char, Char)
 twoChar1 = pairP0 get get
 
 -- >>> doParse twoChar1 "hey!"
+-- Just (('h','e'),"y!")
 
 -- >>> doParse twoChar1 ""
+-- Nothing
 
 -- >>> doParse (pairP0 oneDigit get) "1a"
+-- Just ((1,'a'),"")
 
 -- >>> doParse (pairP0 oneDigit get) "a1"
+-- Nothing
 
 {-
 Parser is an Applicative Functor
@@ -457,12 +476,16 @@ signedDigit :: Parser Int
 signedDigit = oneOp <*> oneDigit
 
 -- >>> doParse twoChar "hey!"
+-- Just (('h','e'),"y!")
 
 -- >>> doParse twoChar ""
+-- Nothing
 
 -- >>> doParse signedDigit "-1"
+-- Just (-1,"")
 
 -- >>> doParse signedDigit "+3"
+-- Just (3,"")
 
 {-
 Now we're picking up speed.  First, we can use our combinators to rewrite
@@ -522,6 +545,7 @@ parenP :: Parser a -> Parser a
 parenP p = char '(' *> p <* char ')'
 
 -- >>> doParse (parenP get) "(1)"
+-- Just ('1',"")
 
 {-
 Monadic Parsing
@@ -535,7 +559,9 @@ see if you can figure out an appropriate definition of `(>>=)`.
 -}
 
 bindP :: Parser a -> (a -> Parser b) -> Parser b
-bindP = undefined
+bindP a f = P $ \s -> do
+  (c, cs) <- doParse a s
+  doParse (f c) cs
 
 twoChar' :: Parser (Char, Char)
 twoChar' = bindP get $ \c1 ->
@@ -567,15 +593,20 @@ Much better!
 -}
 
 -- >>> doParse (string "mic") "mickeyMouse"
+-- Just ("mic","keyMouse")
 
 -- >>> doParse (string "mic") "donald duck"
+-- Nothing
 
 {-
 For fun, try to write `string` using `foldr` for the list recursion.
 -}
 
 string' :: String -> Parser String
-string' = foldr undefined undefined
+string' = foldr f (pure "")
+  where
+    f x acc =
+      (:) <$> char x <*> acc
 
 {-
 Furthermore, we can use natural number recursion to write a parser that grabs
@@ -631,8 +662,10 @@ alphaNumChar :: Parser Char
 alphaNumChar = alphaChar `chooseFirstP` digitChar
 
 -- >>> doParse alphaNumChar "cat"
+-- Just ('c',"at")
 
 -- >>> doParse alphaNumChar "2cat"
+-- Just ('2',"cat")
 
 {-
 Parsing multiple inputs
@@ -652,8 +685,10 @@ manyP :: Parser a -> Parser [a]
 manyP p = ((:) <$> p <*> manyP p) `chooseFirstP` pure []
 
 -- >>> doParse (manyP oneDigit) "12345a"
+-- Just ([1,2,3,4,5],"a")
 
 -- >>> doParse (manyP alphaChar) "12345a"
+-- Just ("","12345a")
 
 {-
 Look out! What happens if we swap the order of the arguments to `chooseFirstP`?
@@ -669,6 +704,7 @@ will always be `[]`.
 -}
 
 -- >>> doParse (manyP' oneDigit) "12345a"
+-- Just ([],"12345a")
 
 {-
 Alternative
@@ -732,12 +768,16 @@ the given parser, zero or more times
 -}
 
 -- >>> doParse (many digitChar) "12345a"
+-- Just ("12345","a")
 
 -- >>> doParse (many digitChar) ""
+-- Just ("","")
 
 -- >>> doParse (some digitChar) "12345a"
+-- Just ("12345","a")
 
 -- >>> doParse (some digitChar) ""
+-- Nothing
 
 {-
 This sequence is maximal because the definition of `many` tries `some v`
@@ -752,8 +792,10 @@ oneNat :: Parser Int
 oneNat = fmap read (some digitChar) -- know that read will succeed because input is all digits
 
 -- >>> doParse oneNat "12345a"
+-- Just (12345,"a")
 
 -- >>> doParse oneNat ""
+-- Nothing
 
 {-
 Challenge (will not be on the quiz): use the `Alternative` operators to
@@ -762,7 +804,10 @@ implement a parser that parses zero or more occurrences of `p`, separated by
 -}
 
 sepBy :: Parser a -> Parser b -> Parser [a]
-sepBy p sep = undefined
+sepBy p sep = some2 p sep <|> pure []
+  where
+    some2 p' sep' =
+      (:) <$> p' <*> many (sep' *> p)
 
 -- >>> doParse (sepBy oneNat (char ',')) "1,12,0,3"
 -- Just ([1,12,0,3],"")
@@ -819,8 +864,10 @@ This works pretty well...
 -}
 
 -- >>> doParse calc1 "1+2+33"
+-- Just (36,"")
 
 -- >>> doParse calc1 "11+22-33"
+-- Just (0,"")
 
 {-
 But things get a bit strange with minus:
@@ -828,6 +875,7 @@ But things get a bit strange with minus:
 -}
 
 -- >>> doParse calc1 "11+22-33+45"
+-- Just (-45,"")
 
 {-
 Huh?  Well, if you look back at the code, you'll realize the
@@ -855,6 +903,7 @@ Furthermore, things also get a bit strange with multiplication:
 -}
 
 -- >>> doParse calc1 "10*2+100"
+-- Just (1020,"")
 
 {-
 This string is parsed as:
@@ -908,8 +957,10 @@ than addition.
 -}
 
 -- >>> doParse calc2 "1+10*2+100"
+-- Just (121,"")
 
 -- >>> doParse calc2 "1+10*(2+100)"
+-- Just (1021,"")
 
 {-
 Do you understand why the first parse returned `121`?
@@ -921,6 +972,7 @@ But we're still not done: we need to fix the associativity problem.
 -}
 
 -- >>> doParse calc2 "10-1-1"
+-- Just (10,"")
 
 {-
 Ugh! I hope you understand why: it's because the above was parsed as
@@ -1002,6 +1054,7 @@ The above is indeed left associative:
 -}
 
 -- >>> doParse addE1 "10-1-1"
+-- Just (8,"")
 
 {-
 Also, it is very easy to spot and bottle the chaining computation
@@ -1026,10 +1079,13 @@ mulE2 = factorE2 `chainl1` mulOp
 factorE2 = parenP addE2 <|> oneNat
 
 -- >>> doParse addE2 "10-1-1"
+-- Just (8,"")
 
 -- >>> doParse addE2 "10*2+1"
+-- Just (21,"")
 
 -- >>> doParse addE2 "10+2*1"
+-- Just (12,"")
 
 {-
 Of course, we can generalize `chainl1` even further so that it is not
